@@ -9,11 +9,8 @@ import (
 	fbApp "main/firebase"
 )
 
-func (h *Handler) GetUsers(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Get users"})
-}
+func (h *Handler) FirebaseAuth(c *fiber.Ctx) error {
 
-func (h *Handler) RegisterUser(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
 	if authHeader == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -35,18 +32,15 @@ func (h *Handler) RegisterUser(c *fiber.Ctx) error {
 		})
 	}
 
-	fbID := decodedToken.UID
-	email := ""
-	if emailClaim, ok := decodedToken.Claims["ema	il"].(string); ok {
-		email = emailClaim
-	}
-
-	user, err := h.service.RegisterUser(fbID, email)
+	cid, err := h.repo.GetUserByFbID(decodedToken.UID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to register user",
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "user not registered",
 		})
 	}
+	c.Locals("id", cid.ID)
+	c.Locals("fbClaims", decodedToken.Claims)
 
-	return c.JSON(user)
+	return c.Next()
+
 }

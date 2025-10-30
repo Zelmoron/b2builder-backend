@@ -2,6 +2,7 @@ package database
 
 import (
 	"log"
+	"main/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -18,5 +19,6 @@ func InitDatabase(dsn string) *gorm.DB {
 }
 
 func Migrate(db *gorm.DB) {
-	log.Println("Running migrations...")
+	db.AutoMigrate(
+		&models.Users{})
 }
