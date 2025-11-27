@@ -13,5 +13,12 @@ func SetupRoutes(app *fiber.App, h *handler.Handler) {
 	})
 
 	app.Post("/reg", h.RegisterUser)
-	//api := app.Group("/api")
+
+	// API routes
+	api := app.Group("/api")
+
+	// Agent routes
+	agent := api.Group("/agent")
+	agent.Post("/create", h.FirebaseAuth, h.CreateBot) // POST /api/agent/create (protected with JWT)
+	agent.Post("/chat", h.Chat)                        // POST /api/agent/chat (public for widget)
 }

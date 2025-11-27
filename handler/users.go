@@ -37,7 +37,7 @@ func (h *Handler) RegisterUser(c *fiber.Ctx) error {
 
 	fbID := decodedToken.UID
 	email := ""
-	if emailClaim, ok := decodedToken.Claims["ema	il"].(string); ok {
+	if emailClaim, ok := decodedToken.Claims["email"].(string); ok {
 		email = emailClaim
 	}
 

@@ -21,6 +21,7 @@ func main() {
 	dsn := os.Getenv("DATABASE_URL")
 
 	db := database.InitDatabase(dsn)
+
 	database.Migrate(db)
 
 	repo := repository.NewRepository(db)
@@ -30,7 +31,11 @@ func main() {
 	app := fiber.New()
 
 	app.Use(logger.New())
-	app.Use(cors.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
+	}))
 
 	SetupRoutes(app, handlers)
 

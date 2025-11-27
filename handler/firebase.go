@@ -39,6 +39,7 @@ func (h *Handler) FirebaseAuth(c *fiber.Ctx) error {
 		})
 	}
 	c.Locals("id", cid.ID)
+	c.Locals("fbUID", decodedToken.UID)
 	c.Locals("fbClaims", decodedToken.Claims)
 
 	return c.Next()
