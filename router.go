@@ -19,6 +19,8 @@ func SetupRoutes(app *fiber.App, h *handler.Handler) {
 
 	// Agent routes
 	agent := api.Group("/agent")
-	agent.Post("/create", h.FirebaseAuth, h.CreateBot) // POST /api/agent/create (protected with JWT)
-	agent.Post("/chat", h.Chat)                        // POST /api/agent/chat (public for widget)
+	agent.Post("/create", h.FirebaseAuth, h.CreateBot)      // POST /api/agent/create (protected with JWT)
+	agent.Get("/list", h.FirebaseAuth, h.GetUserBots)       // GET /api/agent/list (protected with JWT)
+	agent.Delete("/:agentId", h.FirebaseAuth, h.DeleteBot)  // DELETE /api/agent/:agentId (protected with JWT)
+	agent.Post("/chat", h.Chat)                             // POST /api/agent/chat (public for widget)
 }

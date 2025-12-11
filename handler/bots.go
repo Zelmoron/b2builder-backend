@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"main/models"
 )
@@ -15,8 +17,9 @@ type CreateBotRequest struct {
 
 // CreateBotResponse represents the response for bot creation
 type CreateBotResponse struct {
-	BotID  string `json:"botId"`
-	Status string `json:"status"`
+	BotID   string `json:"botId"`
+	AgentID uint   `json:"agentId"`
+	Status  string `json:"status"`
 }
 
 // ChatRequest represents the request body for chat messages
@@ -29,6 +32,20 @@ type ChatRequest struct {
 // ChatResponse represents the response for chat messages
 type ChatResponse struct {
 	Reply string `json:"reply"`
+}
+
+// AgentListItem represents a single agent in the list response
+type AgentListItem struct {
+	ID        uint   `json:"id"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	BotID     string `json:"bot_id"`
+	CreatedAt string `json:"created_at"`
+}
+
+// GetUserBotsResponse represents the response for listing user's agents
+type GetUserBotsResponse struct {
+	Agents []AgentListItem `json:"agents"`
 }
 
 // CreateBot handles POST /api/agent/create
@@ -71,8 +88,9 @@ func (h *Handler) CreateBot(c *fiber.Ctx) error {
 
 	// Return response
 	return c.Status(fiber.StatusOK).JSON(CreateBotResponse{
-		BotID:  bot.BotID,
-		Status: "success",
+		BotID:   bot.BotID,
+		AgentID: bot.ID,
+		Status:  "success",
 	})
 }
 
@@ -122,7 +140,7 @@ func (h *Handler) Chat(c *fiber.Ctx) error {
 	})
 }
 
-// GetUserBots handles GET /api/agent/bots (optional endpoint for listing user's bots)
+// GetUserBots handles GET /api/agent/list (endpoint for listing user's bots)
 func (h *Handler) GetUserBots(c *fiber.Ctx) error {
 	// Get user ID from locals (set by FirebaseAuth middleware)
 	userID, ok := c.Locals("fbUID").(string)
@@ -140,5 +158,64 @@ func (h *Handler) GetUserBots(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(bots)
+	// Convert to response format
+	agents := make([]AgentListItem, len(bots))
+	for i, bot := range bots {
+		agents[i] = AgentListItem{
+			ID:        bot.ID,
+			Name:      bot.Name,
+			Type:      bot.Type,
+			BotID:     bot.BotID,
+			CreatedAt: bot.CreatedAt.Format("2006-01-02T15:04:05Z07:00"), // ISO 8601 format
+		}
+	}
+
+	return c.JSON(GetUserBotsResponse{
+		Agents: agents,
+	})
+}
+
+// DeleteBot handles DELETE /api/agent/:agentId (endpoint for deleting a bot)
+func (h *Handler) DeleteBot(c *fiber.Ctx) error {
+	// Get user ID from locals (set by FirebaseAuth middleware)
+	userID, ok := c.Locals("fbUID").(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "unauthorized",
+		})
+	}
+
+	// Get agentId from URL parameters
+	agentIDStr := c.Params("agentId")
+	if agentIDStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "agentId is required",
+		})
+	}
+
+	// Convert agentId to uint
+	agentID64, err := strconv.ParseUint(agentIDStr, 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid agentId",
+		})
+	}
+	agentID := uint(agentID64)
+
+	// Delete bot
+	if err := h.service.DeleteBot(agentID, userID); err != nil {
+		if err.Error() == "bot not found or access denied" {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "bot not found or access denied",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to delete bot",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Агент успешно удален",
+	})
 }

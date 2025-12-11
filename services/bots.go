@@ -152,3 +152,8 @@ func (s *Service) GetUserBots(userID string) ([]models.Bot, error) {
 func (s *Service) ValidateBotOwnership(botID, userID string) error {
 	return s.repo.ValidateBotOwnership(botID, userID)
 }
+
+// DeleteBot deletes a bot by its ID (database primary key)
+func (s *Service) DeleteBot(agentID uint, userID string) error {
+	return s.repo.DeleteBot(agentID, userID)
+}

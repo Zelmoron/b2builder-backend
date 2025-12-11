@@ -131,3 +131,15 @@ func (r *Repository) ValidateBotOwnership(botID, userID string) error {
 	}
 	return nil
 }
+
+// DeleteBot soft deletes a bot by its ID (database primary key)
+func (r *Repository) DeleteBot(agentID uint, userID string) error {
+	result := r.db.Where("id = ? AND user_id = ?", agentID, userID).Delete(&models.Bot{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("bot not found or access denied")
+	}
+	return nil
+}
