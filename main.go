@@ -22,7 +22,7 @@ func main() {
 
 	db := database.InitDatabase(dsn)
 
-	//database.Migrate(db)
+	database.Migrate(db)
 
 	repo := repository.NewRepository(db)
 	service := services.NewService(repo)

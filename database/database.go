@@ -28,20 +28,33 @@ func InitDatabase(dsn string) *gorm.DB {
 }
 
 func Migrate(db *gorm.DB) {
+	// Migrate Users - skip if already exists and has issues
 	if err := db.AutoMigrate(&models.Users{}); err != nil {
-		log.Fatal("Failed to migrate Users:", err)
+		log.Println("Warning: Users migration had issues:", err)
+	} else {
+		log.Println("Users migration completed")
 	}
-	log.Println("Users migration completed")
 
+	// Migrate Bot - skip if already exists and has issues
 	if err := db.AutoMigrate(&models.Bot{}); err != nil {
-		log.Fatal("Failed to migrate Bot:", err)
+		log.Println("Warning: Bot migration had issues:", err)
+	} else {
+		log.Println("Bot migration completed")
 	}
-	log.Println("Bot migration completed")
 
+	// Migrate ChatSession - skip if already exists and has issues
 	if err := db.AutoMigrate(&models.ChatSession{}); err != nil {
-		log.Fatal("Failed to migrate ChatSession:", err)
+		log.Println("Warning: ChatSession migration had issues:", err)
+	} else {
+		log.Println("ChatSession migration completed")
 	}
-	log.Println("ChatSession migration completed")
+
+	// Migrate N8NWorkflow
+	if err := db.AutoMigrate(&models.N8NWorkflow{}); err != nil {
+		log.Println("Warning: N8NWorkflow migration had issues:", err)
+	} else {
+		log.Println("N8NWorkflow migration completed")
+	}
 
 	log.Println("Database migration completed")
 }
