@@ -13,6 +13,7 @@ func SetupRoutes(app *fiber.App, h *handler.Handler) {
 	})
 
 	app.Post("/reg", h.RegisterUser)
+	app.Post("/:id/webhook", h.RegisterWebhook)
 
 	// API routes
 	api := app.Group("/api")
@@ -26,9 +27,10 @@ func SetupRoutes(app *fiber.App, h *handler.Handler) {
 
 	// N8N AI Workflow routes
 	workflows := api.Group("/n8n/workflows", h.FirebaseAuth)
-	workflows.Post("/", h.CreateWorkflow)          // POST /api/n8n/workflows - Create new workflow with AI
-	workflows.Get("/", h.GetWorkflows)             // GET /api/n8n/workflows - Get all user workflows
-	workflows.Get("/:id", h.GetWorkflow)           // GET /api/n8n/workflows/:id - Get specific workflow with chat history
-	workflows.Put("/:id", h.UpdateWorkflow)        // PUT /api/n8n/workflows/:id - Update workflow with AI
-	workflows.Delete("/:id", h.DeleteWorkflow)     // DELETE /api/n8n/workflows/:id - Delete workflow
+	workflows.Post("/", h.CreateWorkflow)      // POST /api/n8n/workflows - Create new workflow with AI
+	workflows.Get("/", h.GetWorkflows)         // GET /api/n8n/workflows - Get all user workflows
+	workflows.Get("/:id", h.GetWorkflow)       // GET /api/n8n/workflows/:id - Get specific workflow with chat history
+	workflows.Put("/:id", h.UpdateWorkflow)    // PUT /api/n8n/workflows/:id - Update workflow with AI
+	workflows.Delete("/:id", h.DeleteWorkflow) // DELETE /api/n8n/workflows/:id - Delete workflow
+	// POST /api/n8n/workflows/:id/webhook - Force register Telegram webhook
 }

@@ -6,8 +6,9 @@ import (
 
 // CreateWorkflowRequest represents the request to create a new workflow
 type CreateWorkflowRequest struct {
-	Name   string `json:"name"`   // User-defined workflow name
-	Prompt string `json:"prompt"` // Natural language description
+	Name     string `json:"name"`
+	Prompt   string `json:"prompt"`
+	BotToken string `json:"token"`
 }
 
 // UpdateWorkflowRequest represents the request to update an existing workflow
@@ -42,13 +43,13 @@ func (h *Handler) CreateWorkflow(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.Name == "" || req.Prompt == "" {
+	if req.Name == "" || req.Prompt == "" || req.BotToken == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "name and prompt are required",
+			"error": "name, prompt and bot_token are required",
 		})
 	}
 
-	workflow, err := h.service.CreateWorkflowWithAI(userID, req.Name, req.Prompt)
+	workflow, err := h.service.CreateWorkflowWithAI(userID, req.Name, req.Prompt, req.BotToken)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "failed to create workflow",
@@ -244,4 +245,43 @@ func (h *Handler) DeleteWorkflow(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "workflow deleted successfully",
 	})
+}
+
+// RegisterWebhook handles POST /api/n8n/workflows/:id/webhook
+func (h *Handler) RegisterWebhook(c *fiber.Ctx) error {
+	userID, ok := c.Locals("id").(uint)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user not authenticated"})
+	}
+
+	workflowID, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid workflow ID"})
+	}
+
+	workflow, err := h.service.GetWorkflowByID(uint(workflowID))
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "workflow not found"})
+	}
+
+	if workflow.UserID != userID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "access denied"})
+	}
+
+	var req struct {
+		BotToken string `json:"token"`
+	}
+	if err := c.BodyParser(&req); err != nil || req.BotToken == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "token is required"})
+	}
+
+	webhookURL, err := h.service.RegisterWorkflowWebhook(uint(workflowID), req.BotToken)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "failed to register webhook",
+			"details": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"webhook_url": webhookURL})
 }

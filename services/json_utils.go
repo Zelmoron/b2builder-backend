@@ -1,26 +1,50 @@
 package services
 
 import (
-	"regexp"
 	"strings"
 )
 
-// extractJSON extracts JSON from markdown code blocks or returns the original string
 func extractJSON(text string) string {
-	// Try to extract JSON from markdown code blocks (```json ... ```)
-	jsonBlockRegex := regexp.MustCompile("(?s)```(?:json)?\\s*({.*?})\\s*```")
-	matches := jsonBlockRegex.FindStringSubmatch(text)
-	if len(matches) > 1 {
-		return strings.TrimSpace(matches[1])
+	start := strings.Index(text, "{")
+	if start == -1 {
+		return strings.TrimSpace(text)
 	}
 
-	// Try to find JSON object directly
-	jsonRegex := regexp.MustCompile("(?s)({\\s*\".*?})")
-	matches = jsonRegex.FindStringSubmatch(text)
-	if len(matches) > 0 {
-		return strings.TrimSpace(matches[0])
+	depth := 0
+	inString := false
+	escaped := false
+
+	for i := start; i < len(text); i++ {
+		ch := text[i]
+
+		if escaped {
+			escaped = false
+			continue
+		}
+
+		if ch == '\\' && inString {
+			escaped = true
+			continue
+		}
+
+		if ch == '"' {
+			inString = !inString
+			continue
+		}
+
+		if inString {
+			continue
+		}
+
+		if ch == '{' {
+			depth++
+		} else if ch == '}' {
+			depth--
+			if depth == 0 {
+				return strings.TrimSpace(text[start : i+1])
+			}
+		}
 	}
 
-	// Return original if no JSON found
 	return strings.TrimSpace(text)
 }

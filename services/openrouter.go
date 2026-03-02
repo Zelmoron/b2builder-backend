@@ -10,8 +10,8 @@ import (
 
 const (
 	OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-	OPENROUTER_API_KEY = "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"
-	GEMINI_MODEL       = "google/gemini-2.5-flash"
+	OPENROUTER_API_KEY = "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"
+	GEMINI_MODEL       = "google/gemini-3-flash-preview"
 )
 
 type OpenRouterMessage struct {
@@ -20,8 +20,9 @@ type OpenRouterMessage struct {
 }
 
 type OpenRouterRequest struct {
-	Model    string              `json:"model"`
-	Messages []OpenRouterMessage `json:"messages"`
+	Model     string              `json:"model"`
+	Messages  []OpenRouterMessage `json:"messages"`
+	MaxTokens int                 `json:"max_tokens"`
 }
 
 type OpenRouterResponse struct {
@@ -39,8 +40,9 @@ type OpenRouterResponse struct {
 
 func (s *Service) callOpenRouter(messages []OpenRouterMessage) (string, error) {
 	reqBody := OpenRouterRequest{
-		Model:    GEMINI_MODEL,
-		Messages: messages,
+		Model:     GEMINI_MODEL,
+		Messages:  messages,
+		MaxTokens: 8192,
 	}
 
 	jsonData, err := json.Marshal(reqBody)
