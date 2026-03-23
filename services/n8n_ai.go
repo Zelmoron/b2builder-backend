@@ -116,15 +116,37 @@ func (s *Service) UpdateWorkflowWithAI(workflowID uint, userPrompt string) (*mod
 		return nil, fmt.Errorf("workflow not found: %w", err)
 	}
 
+	currentWorkflowJSON := dbWorkflow.WorkflowJSON
+
+	if dbWorkflow.WorkflowID != "" {
+		n8nCurrent, err := s.getN8NWorkflowByID(dbWorkflow.WorkflowID)
+		if err != nil {
+			log.Printf("[UpdateWorkflow] failed to fetch current workflow from n8n, using DB version: %v", err)
+		} else {
+			n8nData := map[string]interface{}{
+				"nodes":       n8nCurrent.Nodes,
+				"connections": n8nCurrent.Connections,
+				"settings":    n8nCurrent.Settings,
+			}
+			if fetched, err := json.Marshal(n8nData); err == nil {
+				currentWorkflowJSON = fetched
+				log.Printf("[UpdateWorkflow] using live workflow from n8n")
+			}
+		}
+	}
+
+	existingWebhookID, _ := extractWebhookIDFromWorkflow(currentWorkflowJSON)
+	log.Printf("[UpdateWorkflow] preserving webhookId=%s", existingWebhookID)
+
 	var chatHistory []models.WorkflowChatMessage
 	if err := json.Unmarshal(dbWorkflow.ChatHistory, &chatHistory); err != nil {
 		return nil, fmt.Errorf("failed to parse chat history: %w", err)
 	}
 
-	credID, credName := extractCredentialFromWorkflow(dbWorkflow.WorkflowJSON)
+	credID, credName := extractCredentialFromWorkflow(currentWorkflowJSON)
 	log.Printf("[UpdateWorkflow] using credential: id=%q name=%q", credID, credName)
 
-	systemPrompt := fmt.Sprintf(N8N_WORKFLOW_SYSTEM_PROMPT, credID, credName)
+	systemPrompt := fmt.Sprintf(N8N_WORKFLOW_UPDATE_PROMPT, credID, credName)
 
 	messages := []OpenRouterMessage{
 		{Role: "system", Content: systemPrompt},
@@ -137,7 +159,7 @@ func (s *Service) UpdateWorkflowWithAI(workflowID uint, userPrompt string) (*mod
 		})
 	}
 
-	contextPrompt := fmt.Sprintf("Current workflow JSON:\n%s\n\nUser request: %s", string(dbWorkflow.WorkflowJSON), userPrompt)
+	contextPrompt := fmt.Sprintf("Current workflow JSON (this is the LIVE version, preserve all IDs and webhookId values exactly):\n```json\n%s\n```\n\nUser request: %s", string(currentWorkflowJSON), userPrompt)
 	messages = append(messages, OpenRouterMessage{Role: "user", Content: contextPrompt})
 
 	log.Printf("[UpdateWorkflow] calling AI...")
@@ -157,7 +179,8 @@ func (s *Service) UpdateWorkflowWithAI(workflowID uint, userPrompt string) (*mod
 		return nil, fmt.Errorf("failed to parse AI response as JSON: %w", err)
 	}
 
-	injectWebhookIDs(workflowData)
+	restoreWebhookIDs(workflowData, existingWebhookID)
+	restoreCredentials(workflowData, credID, credName)
 
 	chatHistory = append(chatHistory,
 		models.WorkflowChatMessage{Role: "user", Content: userPrompt, Timestamp: time.Now()},
@@ -196,6 +219,52 @@ func (s *Service) UpdateWorkflowWithAI(workflowID uint, userPrompt string) (*mod
 	}
 
 	return dbWorkflow, nil
+}
+
+func restoreWebhookIDs(data map[string]interface{}, webhookID string) {
+	if webhookID == "" {
+		return
+	}
+	nodes, ok := data["nodes"].([]interface{})
+	if !ok {
+		return
+	}
+	for _, node := range nodes {
+		nodeMap, ok := node.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if nodeMap["type"] != "n8n-nodes-base.telegramTrigger" {
+			continue
+		}
+		nodeMap["webhookId"] = webhookID
+		if params, ok := nodeMap["parameters"].(map[string]interface{}); ok {
+			delete(params, "webhookId")
+		}
+	}
+}
+
+func restoreCredentials(data map[string]interface{}, credID, credName string) {
+	nodes, ok := data["nodes"].([]interface{})
+	if !ok {
+		return
+	}
+	for _, node := range nodes {
+		nodeMap, ok := node.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		creds, ok := nodeMap["credentials"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if _, ok := creds["telegramApi"]; ok {
+			creds["telegramApi"] = map[string]interface{}{
+				"id":   credID,
+				"name": credName,
+			}
+		}
+	}
 }
 
 func (s *Service) RegisterWorkflowWebhook(workflowID uint, botToken string) (string, error) {
