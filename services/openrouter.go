@@ -23,6 +23,7 @@ type OpenRouterRequest struct {
 	Model     string              `json:"model"`
 	Messages  []OpenRouterMessage `json:"messages"`
 	MaxTokens int                 `json:"max_tokens"`
+	Reasoning map[string]bool     `json:"reasoning,omitempty"`
 }
 
 type OpenRouterResponse struct {
@@ -43,6 +44,9 @@ func (s *Service) callOpenRouter(messages []OpenRouterMessage) (string, error) {
 		Model:     GEMINI_MODEL,
 		Messages:  messages,
 		MaxTokens: 8192,
+		Reasoning: map[string]bool{
+			"enabled": true,
+		},
 	}
 
 	jsonData, err := json.Marshal(reqBody)
