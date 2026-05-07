@@ -15,10 +15,11 @@ type ChatSession struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Bot       Bot            `gorm:"foreignKey:BotID;references:BotID" json:"-"`
 }
 
 type ChatMessage struct {
-	Role      string    `json:"role"` // "user" or "assistant"
+	Role      string    `json:"role"`
 	Content   string    `json:"content"`
 	Timestamp time.Time `json:"timestamp"`
 }

@@ -6,13 +6,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 const (
 	OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-	OPENROUTER_API_KEY = "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"
 	GEMINI_MODEL       = "google/gemini-3-flash-preview"
 )
+
+var OPENROUTER_API_KEY = os.Getenv("OPENROUTER_API_KEY")
 
 type OpenRouterMessage struct {
 	Role    string `json:"role"`
